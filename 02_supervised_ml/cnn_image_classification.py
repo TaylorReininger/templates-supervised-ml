@@ -126,8 +126,16 @@ model.summary()
 # Compile the model for execution
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 # Train the model on the training data, with a validation split
-model.fit(x_train_norm, y_train_one_hot, epochs=5, batch_size=128, validation_split=0.25)
+history = model.fit(x_train_norm, y_train_one_hot, epochs=5, batch_size=128, validation_split=0.25)
 
+# Make a plot of the training and validation loss, then save off the plot and the history object itself
+
+
+
+
+
+
+"""Do Testing on the Results"""
 
 
 

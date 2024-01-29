@@ -1,15 +1,18 @@
 
-
-
 # Imports
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 import numpy as np
+import pickle
+import os
 
 # Flag to enable suppression of plots
-MAKE_PLOTS = False
+MAKE_PLOTS = True
+DIR_SAVE_NETS = 'trained_nets'
 
 """Download the MNIST dataset"""
 (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -126,17 +129,78 @@ model.summary()
 # Compile the model for execution
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 # Train the model on the training data, with a validation split
-history = model.fit(x_train_norm, y_train_one_hot, epochs=5, batch_size=128, validation_split=0.25)
+epochs = 5
+history = model.fit(x_train_norm, y_train_one_hot, epochs=epochs, batch_size=128, validation_split=0.25)
 
-# Make a plot of the training and validation loss, then save off the plot and the history object itself
+if not os.path.exists(DIR_SAVE_NETS):
+    os.makedirs(DIR_SAVE_NETS)
+
+# Save the model to disk
+path_trained_model = os.path.join(DIR_SAVE_NETS, 'trained_model.keras')
+model.save(path_trained_model)
+
+# Save the history to disk
+path_model_history = os.path.join(DIR_SAVE_NETS, 'model_history')
+with open(path_model_history, 'wb') as history_file:
+    pickle.dump(history.history, history_file)
+
+# Load the model and history from disk
+new_model = tf.keras.models.load_model(path_trained_model)
+with open(path_model_history, "rb") as history_file:
+    new_history = pickle.load(history_file)
 
 
-
-
+# Make a plot of the training and validation accuracies and losses
+if MAKE_PLOTS:
+    plt.plot(new_history['accuracy'])
+    plt.plot(new_history['val_accuracy'])
+    plt.title('Training and Validation Accuracy')
+    plt.ylabel('Accuracy')
+    plt.ylim([0, 1])
+    plt.xlabel('Epoch')
+    plt.xlim([0, epochs-1]) 
+    plt.legend(['train', 'val'], loc='lower right')
+    plt.grid(color='k', linestyle='-', linewidth=0.5)
+    plt.show()
+    plt.close()
+    
+    plt.plot(new_history['loss'])
+    plt.plot(new_history['val_loss'])
+    plt.title('Training and Validation Loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.xlim([0, epochs-1])
+    plt.legend(['train', 'val'], loc='upper right')
+    plt.grid(color='k', linestyle='-', linewidth=0.5)
+    plt.show()
+    plt.close()
 
 
 """Do Testing on the Results"""
+# Perform inference with the holdout x data
+test_y_hat = new_model.predict(x_test_norm)
 
+# Produce a confusion matrix
+confusion = confusion_matrix(y_test, np.argmax(test_y_hat, axis=1))
+# Normalize the confusion matrix
+conf_norm = np.zeros(confusion.shape)
+for row in range(0, len(unique_classes)):
+    conf_norm[row, :] = confusion[row, :]/np.sum(confusion[row, :])
+
+# Plot the confusion matrix with seaborn
+if MAKE_PLOTS:
+    sns.heatmap(conf_norm, annot=True, fmt='0.2f', cmap=sns.color_palette("Blues", as_cmap=True),
+                xticklabels=unique_classes, yticklabels=unique_classes, vmin=0, vmax=1)
+    plt.ylabel('Prediction')
+    plt.xlabel('Actual')
+    plt.title('Confusion Matrix')
+    plt.show()
+
+# Get the overall accuracy and loss and display them to the user
+evaluation = new_model.evaluate(x_test_norm, y_test_one_hot)
+print('------------------------------------')
+print('The final test accuracy is: %0.4f' % (evaluation[1]))
+print('The final test loss is: %0.3e' % (evaluation[0]))
 
 
 
